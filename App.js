@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useDebugValue } from 'react';
 import { StyleSheet, Text, View, Button } from 'react-native';
 import base64 from 'react-native-base64';
 import * as Location from 'expo-location';
@@ -20,6 +20,7 @@ export default function App() {
   const [status, setStatus] = useState('');
   const [places_nearby, setPlaces_nearby] = useState(null);
   const [listStopPoints, setStopPoints] = useState([]);
+  const [departures, setDepartures] = useState([]);
 
   React.useEffect(() => {
     if (location != null) {
@@ -46,23 +47,60 @@ export default function App() {
     if (places_nearby !== null) {
       places_nearby.places_nearby.map((place) => {
         if (place.embedded_type === "stop_point") {
-          const p = {
-            id : i,
-            name : place.name
+          let foundStop = (listStopPoints.find((stopPoint) => {
+            return stopPoint.name === place.name
+          }))
+          if (!foundStop){ 
+            console.log("pas trouvé"),
+            listStopPoints.push({
+              id : place.id,
+              name : place.name,
+            });
           }
-          listStopPoints.push(p);
           i += 0;
         }
+      })
+      departures.map((departure) => {
+        console.log("departure in useEffect for SetStopPoint: " + departure);
       })
       setStopPoints(listStopPoints);
     }
   }, [places_nearby]) 
 
   React.useEffect(() => {
-    if (listStopPoints !== []) {
+    if (listStopPoints.length !== 0) {
+      var nextDepartures = []; // { name (arret), nom transport, horaire de départ en heure:min}
+       listStopPoints.map((stopPoint) => { // utiliser Promise.all
+        fetch(`${API_URL}` + `/coverage/fr-idf/stop_points/${stopPoint.id}/departures`, {
+          headers: {
+            'Authorization': `Basic ${base64.encode(`${API_TOKEN}:''`)}`,
+            'Content-Type': 'application/json'
+          }})
+        .then(response => response.json())
+        .then(responseJson => {
+          
+          responseJson.departures.map((departure) => {
+            // console.log(departure.display_informations.name);
+            nextDepartures.push(departure.display_informations.name);
+          })
 
-    }
+         
+
+        })
+        .catch(error => {
+          console.log(error);
+        })
+        .finally(() => {
+          nextDepartures.map((departure) => {
+            console.log(departure);
+          })
+          setDepartures(nextDepartures);
+        })
+
+        
   })
+}
+  }, [listStopPoints])
 
   _getLocationAsync = async() => {
     let { status } = await Permissions.askAsync(Permissions.LOCATION);
@@ -76,13 +114,17 @@ export default function App() {
       }
       setLocation(location);
     }
-    console.log(location);
+    // console.log(location);
   }
 
   return (
     <View style={styles.container}>
       {listStopPoints.map((stopPoint, id) => {
         return (<Text key={id}> points d'arrêt proche : {stopPoint.name} </Text>)
+      })}
+      <Text> Prochains départs </Text>
+      {departures.map((departure) => {
+        return (<Text key={departure}> departure : {departure} </Text>)
       })}
       <Text> GPS Location Permission :  {status}</Text>
       <Button
