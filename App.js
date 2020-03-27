@@ -70,35 +70,23 @@ export default function App() {
   React.useEffect(() => {
     if (listStopPoints.length !== 0) {
       var nextDepartures = []; // { name (arret), nom transport, horaire de départ en heure:min}
-       listStopPoints.map((stopPoint) => { // utiliser Promise.all
-        fetch(`${API_URL}` + `/coverage/fr-idf/stop_points/${stopPoint.id}/departures`, {
+
+      Promise.all(listStopPoints.map((stopPoint) => {
+        return fetch(`${API_URL}` + `/coverage/fr-idf/stop_points/${stopPoint.id}/departures`, {
           headers: {
             'Authorization': `Basic ${base64.encode(`${API_TOKEN}:''`)}`,
             'Content-Type': 'application/json'
-          }})
-        .then(response => response.json())
-        .then(responseJson => {
-          
-          responseJson.departures.map((departure) => {
-            // console.log(departure.display_informations.name);
+          }}).then(response => response.json()).catch(error => console.log(error))
+      })).then(responses => {
+        responses.map((response) => {
+          response.departures.map((departure) => {
             nextDepartures.push(departure.display_informations.name);
           })
-
-         
-
-        })
-        .catch(error => {
-          console.log(error);
-        })
-        .finally(() => {
-          nextDepartures.map((departure) => {
-            console.log(departure);
-          })
           setDepartures(nextDepartures);
+          // console.log(response);
         })
-
-        
-  })
+      })
+          // setDepartures(nextDepartures);
 }
   }, [listStopPoints])
 
